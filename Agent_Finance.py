@@ -411,38 +411,39 @@ crew = Crew(
 # Configuração da Página
 st.set_page_config(page_title="Advanced Stock Analysis Dashboard", layout="wide")
 
-# Título Principal
-st.title("Advanced Stock Analysis Dashboard")
-
 # Senha de Acesso
 PASSWORD = "future_lab"  # Substitua por uma senha segura
 entered_password = st.text_input("Enter the password:", type="password")
 
-if entered_password == PASSWORD:
-    # Barra Lateral - Entrada de Consulta
-    st.sidebar.header("Stock Analysis Query")
-    query = st.sidebar.text_area(
-        "Enter your stock analysis question",
-        value="Is Apple a safe long-term investment for a risk-averse investor?",
-        height=100
-    )
-    analyze_button = st.sidebar.button("Run Analysis")
-
-    # Execução da Análise
-    if analyze_button:
-        st.info(f"Processing query: {query}. Please wait while we generate insights...")
-
-        default_date = datetime.datetime.now().date()
-        result = crew.kickoff(inputs={"query": query, "default_date": str(default_date)})
-
-        st.success("Analysis complete!")
-
-        # Exibição do Relatório
-        st.markdown("## Full Analysis Report")
-        st.markdown(result)
-
-    # Rodapé
-    st.markdown("---")
-    st.markdown("Developed by FutureLab")
-else:
+if entered_password != PASSWORD:
     st.warning("Incorrect password. Please try again.")
+    st.stop()  # Interrompe a execução do código até que a senha esteja correta
+
+# Título Principal (só aparece se a senha estiver correta)
+st.title("Advanced Stock Analysis Dashboard")
+
+# Barra Lateral - Entrada de Consulta
+st.sidebar.header("Stock Analysis Query")
+query = st.sidebar.text_area(
+    "Enter your stock analysis question",
+    value="Is Apple a safe long-term investment for a risk-averse investor?",
+    height=100
+)
+analyze_button = st.sidebar.button("Run Analysis")
+
+# Execução da Análise
+if analyze_button:
+    st.info(f"Processing query: {query}. Please wait while we generate insights...")
+
+    default_date = datetime.datetime.now().date()
+    result = crew.kickoff(inputs={"query": query, "default_date": str(default_date)})
+
+    st.success("Analysis complete!")
+
+    # Exibição do Relatório
+    st.markdown("## Full Analysis Report")
+    st.markdown(result)
+
+# Rodapé
+st.markdown("---")
+st.markdown("Developed by FutureLab")
