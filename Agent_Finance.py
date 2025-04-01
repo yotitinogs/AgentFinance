@@ -411,14 +411,14 @@ crew = Crew(
 # Configuração da Página
 st.set_page_config(page_title="Advanced Stock Analysis Dashboard", layout="wide")
 
+# Título Principal
+st.title("Advanced Stock Analysis Dashboard")
+
 # Senha de Acesso
 PASSWORD = "future_lab"  # Substitua por uma senha segura
 entered_password = st.text_input("Enter the password:", type="password")
 
 if entered_password == PASSWORD:
-    # Título Principal
-    st.title("Advanced Stock Analysis Dashboard")
-
     # Barra Lateral - Entrada de Consulta
     st.sidebar.header("Stock Analysis Query")
     query = st.sidebar.text_area(
