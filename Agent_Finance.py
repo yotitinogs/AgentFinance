@@ -3,14 +3,14 @@ import yfinance as yf
 from datetime import datetime, timedelta
 from crewai import Crew, Agent, Task, Process
 from crewai_tools import tool
-from langchain_groq import ChatGroq
 import numpy as np
 import streamlit as st
+from openai import OpenAI
+from langchain_openai import ChatOpenAI
 
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-GROQ_API_KEY = "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"
-
-llm_llama70b = ChatGroq(model_name="llama3-70b-8192", groq_api_key=GROQ_API_KEY)
+llm_gpt = ChatOpenAI(api_key=OPENAI_API_KEY, model="gpt-3.5-turbo", temperature=0)
 
 @tool
 def get_basic_stock_info(ticker: str) -> pd.DataFrame:
@@ -78,6 +78,34 @@ def get_fundamental_analysis(ticker: str, period: str = '1y') -> pd.DataFrame:
     
     return fundamental_analysis
 
+def calculate_beta(stock_returns, market_ticker, period):
+    market = yf.Ticker(market_ticker)
+    market_history = market.history(period=period)
+    market_returns = market_history['Close'].pct_change().dropna()
+    
+    # Align the dates of stock and market returns
+    aligned_returns = pd.concat([stock_returns, market_returns], axis=1).dropna()
+    
+    covariance = aligned_returns.cov().iloc[0, 1]
+    market_variance = market_returns.var()
+    
+    return covariance / market_variance
+
+def calculate_max_drawdown(prices):
+    peak = prices.cummax()
+    drawdown = (prices - peak) / peak
+    return drawdown.min()
+
+def calculate_sharpe_ratio(returns, risk_free_rate=0.02):
+    excess_returns = returns - risk_free_rate/252
+    return np.sqrt(252) * excess_returns.mean() / excess_returns.std()
+
+def calculate_sortino_ratio(returns, risk_free_rate=0.02, target_return=0):
+    excess_returns = returns - risk_free_rate/252
+    downside_returns = excess_returns[excess_returns < target_return]
+    downside_deviation = np.sqrt(np.mean(downside_returns**2))
+    return np.sqrt(252) * excess_returns.mean() / downside_deviation
+
 @tool
 def get_stock_risk_assessment(ticker: str, period: str = "1y") -> pd.DataFrame:
     """Performs a risk assessment on a given stock.
@@ -108,103 +136,6 @@ def get_stock_risk_assessment(ticker: str, period: str = "1y") -> pd.DataFrame:
     })
     
     return risk_assessment
-
-def calculate_beta(stock_returns, market_ticker, period):
-    market = yf.Ticker(market_ticker)
-    market_history = market.history(period=period)
-    market_returns = market_history['Close'].pct_change().dropna()
-    
-    # Align the dates of stock and market returns
-    aligned_returns = pd.concat([stock_returns, market_returns], axis=1).dropna()
-    
-    covariance = aligned_returns.cov().iloc[0, 1]
-    market_variance = market_returns.var()
-    
-    return covariance / market_variance
-
-def calculate_max_drawdown(prices):
-    peak = prices.cummax()
-    drawdown = (prices - peak) / peak
-    return drawdown.min()
-
-def calculate_sharpe_ratio(returns, risk_free_rate=0.02):
-    excess_returns = returns - risk_free_rate/252
-    return np.sqrt(252) * excess_returns.mean() / excess_returns.std()
-
-def calculate_sortino_ratio(returns, risk_free_rate=0.02, target_return=0):
-    excess_returns = returns - risk_free_rate/252
-    downside_returns = excess_returns[excess_returns < target_return]
-    downside_deviation = np.sqrt(np.mean(downside_returns**2))
-    return np.sqrt(252) * excess_returns.mean() / downside_deviation
-
-@tool
-def get_technical_analysis(ticker: str, period: str = "") -> pd.DataFrame:
-    """Perform technical analysis on a given stock.
-    
-    Params:
-    - ticker: The stock ticker symbol.
-    - period: The time period for historical data (available time-periods: ["1d", "5d", "1mo", "3mo", "6mo", "1y", "2y", "5y", "10y", "ytd", "max"]).
-    """
-    stock = yf.Ticker(ticker)
-    history = stock.history(period=period)
-    
-    # Calculate indicators
-    history['SMA_50'] = history['Close'].rolling(window=50).mean()
-    history['SMA_200'] = history['Close'].rolling(window=200).mean()
-    history['RSI'] = calculate_rsi(history['Close'])
-    history['MACD'], history['Signal'] = calculate_macd(history['Close'])
-    
-    latest = history.iloc[-1]
-    
-    analysis = pd.DataFrame({
-        'Indicator': [
-            'Current Price',
-            '50-day SMA',
-            '200-day SMA',
-            'RSI (14-day)',
-            'MACD',
-            'MACD Signal',
-            'Trend',
-            'MACD Signal',
-            'RSI Signal'
-        ],
-        'Value': [
-            f'${latest["Close"]:.2f}',
-            f'${latest["SMA_50"]:.2f}',
-            f'${latest["SMA_200"]:.2f}',
-            f'{latest["RSI"]:.2f}',
-            f'{latest["MACD"]:.2f}',
-            f'{latest["Signal"]:.2f}',
-            analyze_trend(latest),
-            analyze_macd(latest),
-            analyze_rsi(latest)
-        ]
-    })
-    
-    return analysis
-
-@tool
-def get_stock_news(ticker: str, limit: int = 10) -> pd.DataFrame:
-    """Fetches recent news articles related to a specific stock.
-    
-    Params:
-    - ticker: The stock ticker symbol.
-    - limit: The number of news articles to fetch.
-    """
-    stock = yf.Ticker(ticker)
-    news = stock.news[:limit]
-    
-    news_data = []
-    for article in news:
-        news_entry = {
-            "Title": article['title'],
-            "Publisher": article['publisher'],
-            "Published": datetime.fromtimestamp(article['providerPublishTime']).strftime('%Y-%m-%d %H:%M:%S'),
-            "Link": article['link']
-        }
-        news_data.append(news_entry)
-    
-    return pd.DataFrame(news_data)
 
 def calculate_rsi(series, period=14):
     delta = series.diff()
@@ -273,10 +204,80 @@ def interpret_price_to_book(self, price_to_book):
         return "Overvalued"
     else:
         return "Neutral"
+
+@tool
+def get_technical_analysis(ticker: str, period: str = "1y") -> pd.DataFrame:
+    """Perform technical analysis on a given stock.
     
+    Params:
+    - ticker: The stock ticker symbol.
+    - period: The time period for historical data (available time-periods: ["1d", "5d", "1mo", "3mo", "6mo", "1y", "2y", "5y", "10y", "ytd", "max"]).
+    """
+    stock = yf.Ticker(ticker)
+    history = stock.history(period=period)
     
+    # Calculate indicators
+    history['SMA_50'] = history['Close'].rolling(window=50).mean()
+    history['SMA_200'] = history['Close'].rolling(window=200).mean()
+    history['RSI'] = calculate_rsi(history['Close'])
+    history['MACD'], history['Signal'] = calculate_macd(history['Close'])
+    
+    latest = history.iloc[-1]
+    
+    analysis = pd.DataFrame({
+        'Indicator': [
+            'Current Price',
+            '50-day SMA',
+            '200-day SMA',
+            'RSI (14-day)',
+            'MACD',
+            'MACD Signal',
+            'Trend',
+            'MACD Signal',
+            'RSI Signal'
+        ],
+        'Value': [
+            f'${latest["Close"]:.2f}',
+            f'${latest["SMA_50"]:.2f}',
+            f'${latest["SMA_200"]:.2f}',
+            f'{latest["RSI"]:.2f}',
+            f'{latest["MACD"]:.2f}',
+            f'{latest["Signal"]:.2f}',
+            analyze_trend(latest),
+            analyze_macd(latest),
+            analyze_rsi(latest)
+        ]
+    })
+    
+    return analysis
+
+@tool
+def get_stock_news(ticker: str, limit: int = 50) -> pd.DataFrame:
+    """Fetches recent news articles related to a specific stock.
+    
+    Params:
+    - ticker: The stock ticker symbol.
+    - limit: The number of news articles to fetch.
+    """
+    stock = yf.Ticker(ticker)
+    news = stock.news[:limit]
+    
+    news_data = []
+    for article in news:
+        content = article['content']
+        news_entry = {
+            "Title": content['title'],
+            "Publisher": content['provider']['displayName'],
+            "Published": datetime.strptime(content['pubDate'], '%Y-%m-%dT%H:%M:%SZ').strftime('%Y-%m-%d %H:%M:%S'),
+            "Summary": content['summary']
+            # "Link":  content['clickThroughUrl']['url']
+        }
+        news_data.append(news_entry)
+    
+    return pd.DataFrame(news_data)
+
 stock_researcher = Agent(
-    llm=llm_llama70b,
+    llm=llm_gpt,
     role="Stock Researcher",
     goal="Identify the stock and the stock ticker, and if you already have the stock ticker and if it's necessary, get basic stock info about the selected stock.",
     backstory="An junior stock researcher with a knack for gathering relevant, basic information about stocks, the relevant company/companies, the industry, and some basic info about stock's performance",
@@ -286,7 +287,7 @@ stock_researcher = Agent(
 )
 
 financial_analyst = Agent(
-    llm=llm_llama70b,
+    llm=llm_gpt,
     role="Financial Analyst",
     goal="Perform in-depth fundamental and technical analysis on the stock, focusing on aspects most relevant to the user's query",
     backstory="A seasoned financial analyst with expertise in interpreting complex financial data and translating it into insights tailored to various levels of financial literacy",
@@ -296,7 +297,7 @@ financial_analyst = Agent(
 )
 
 news_analyst = Agent(
-    llm=llm_llama70b,
+    llm=llm_gpt,
     role="News Analyst",
     goal="Fetch recent news articles related to the stock and their potential impact on performance",
     backstory="A sharp news analyst who can quickly digest information, assess its relevance to stock performance, and provide concise summaries",
@@ -306,12 +307,12 @@ news_analyst = Agent(
 
 report_writer = Agent(
     role='Financial Report Writer',
-    goal='Synthesize all analysis into a cohesive, professional stock report',
+    goal='Synthesize all analysis into a cohesive, professional stock report in portuguese',
     backstory='Experienced financial writer with a talent for clear, concise reporting',
     tools=[],
     verbose=True,
     allow_delegation=False,
-    llm=llm_llama70b
+    llm=llm_gpt
 )
 
 collect_stock_info = Task(
@@ -324,13 +325,13 @@ collect_stock_info = Task(
     User query: {query}.
     
     Your response should be on the basis of:
-    Ticker: [identified stock ticker]
+    Ticker: [identified stock ticker name]
     Timeframe: [identified timeframe]
     Analysis Focus: [identified focus of analysis]
     User Expertise: [implied level of financial expertise]
     Key Concerns: [specific concerns or priorities mentioned]
     ''',
-    expected_output="A summary of the stock's key financial metrics and performance, tailored to the user's query.",
+    expected_output="A summary of the stock's key financial metrics and performance using the tool, tailored to the user's query.",
     agent=stock_researcher,
     dependencies=[],
     context=[]
@@ -376,18 +377,19 @@ generate_stock_report = Task(
     4. Conclude with a summary that ties all insights back to the original question
 
     Ensure that:
-    - The report directly answers the user's specific question
-    - The language and depth of analysis match the user's level of expertise implied by the query
-    - The report highlights factors most relevant to the user's identified concerns and timeframe
-    - Clear, professional language is used throughout, with well-reasoned insights
-    - The report is in markdown format for easy reading and formatting
-    - The report should be crisp but detailed. You can reiterate important points but avoid redundancy.
-    - You are an expert in the field, so you should be confident in your answer, requiring no further action/analysis from the user. It is your job to give a clear recommendation.
-    - The report should contain only the relevant info. E.g. if the query is about the fundamentals of a stock, then technical info need not be present.
+    - The report directly answers the user's specific question.
+    - The language and depth of analysis match the user's level of expertise implied by the query.
+    - The report highlights factors most relevant to the user's identified concerns and timeframe.
+    - Clear, professional language is used throughout, with well-reasoned insights.
+    - The report is in Markdown format for easy reading and formatting.
+    - The report should be concise yet detailed—important points may be reiterated for emphasis, but redundancy should be avoided.
+    - You are an expert in the field, so your answer should be confident and require no further action or analysis from the user. It is your job to provide a clear investment recommendation.
+    - The report should contain only relevant information (e.g., if the query is about a stock’s fundamentals, technical analysis is unnecessary).
+    - The report should be written in **Portuguese**, but any sourced content (such as news articles or external data) should be kept in its **original language**.
     
     User query: {query}.
     ''',
-    expected_output="A comprehensive stock report in markdown format, addressing all aspects of the user's query and providing a clear investment recommendation.",
+    expected_output="A comprehensive stock report in Markdown format, written in Portuguese, covering all aspects of the user's query and providing a clear investment recommendation.",
     agent=report_writer,
     dependencies=[collect_stock_info],
     context=[collect_stock_info, perform_analysis, analyze_stock_news]
@@ -402,27 +404,37 @@ crew = Crew(
         generate_stock_report
     ],
     process=Process.sequential,
-    manager_llm=llm_llama70b
+    manager_llm=llm_gpt
 )
 
+# Configuração da Página
 st.set_page_config(page_title="Advanced Stock Analysis Dashboard", layout="wide")
 
+# Título Principal
 st.title("Advanced Stock Analysis Dashboard")
 
+# Barra Lateral - Entrada de Consulta
 st.sidebar.header("Stock Analysis Query")
-query = st.sidebar.text_area("Enter your stock analysis question", value="Is Apple a safe long-term bet for a risk-averse individual?", height=100)
-analyze_button = st.sidebar.button("Analyze")
+query = st.sidebar.text_area(
+    "Enter your stock analysis question",
+    value="Is Apple a safe long-term investment for a risk-averse investor?",
+    height=100
+)
+analyze_button = st.sidebar.button("Run Analysis")
 
+# Execução da Análise
 if analyze_button:
-    st.info(f"Starting analysis for query: {query}. This may take a few minutes...")
+    st.info(f"Processing query: {query}. Please wait while we generate insights...")
 
     default_date = datetime.now().date()
     result = crew.kickoff(inputs={"query": query, "default_date": str(default_date)})
-    
+
     st.success("Analysis complete!")
-    
+
+    # Exibição do Relatório
     st.markdown("## Full Analysis Report")
     st.markdown(result)
 
+# Rodapé
 st.markdown("---")
-st.markdown("Made by Vansh Kharidia")
+st.markdown("Developed by FutureLab")
