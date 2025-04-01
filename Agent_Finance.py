@@ -8,7 +8,7 @@ import numpy as np
 import streamlit as st
 
 
-GROQ_API_KEY = "YOUR_GROQ_API_KEY"
+GROQ_API_KEY = "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"
 
 llm_llama70b = ChatGroq(model_name="llama3-70b-8192", groq_api_key=GROQ_API_KEY)
 
