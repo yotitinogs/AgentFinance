@@ -411,31 +411,38 @@ crew = Crew(
 # Configuração da Página
 st.set_page_config(page_title="Advanced Stock Analysis Dashboard", layout="wide")
 
-# Título Principal
-st.title("Advanced Stock Analysis Dashboard")
+# Senha de Acesso
+PASSWORD = "future_lab"  # Substitua por uma senha segura
+entered_password = st.text_input("Enter the password:", type="password")
 
-# Barra Lateral - Entrada de Consulta
-st.sidebar.header("Stock Analysis Query")
-query = st.sidebar.text_area(
-    "Enter your stock analysis question",
-    value="O que devo saber antes de investir na Petrobras?",
-    height=100
-)
-analyze_button = st.sidebar.button("Run Analysis")
+if entered_password == PASSWORD:
+    # Título Principal
+    st.title("Advanced Stock Analysis Dashboard")
 
-# Execução da Análise
-if analyze_button:
-    st.info(f"Processing query: {query}. Please wait while we generate insights...")
+    # Barra Lateral - Entrada de Consulta
+    st.sidebar.header("Stock Analysis Query")
+    query = st.sidebar.text_area(
+        "Enter your stock analysis question",
+        value="Is Apple a safe long-term investment for a risk-averse investor?",
+        height=100
+    )
+    analyze_button = st.sidebar.button("Run Analysis")
 
-    default_date = datetime.now().date()
-    result = crew.kickoff(inputs={"query": query, "default_date": str(default_date)})
+    # Execução da Análise
+    if analyze_button:
+        st.info(f"Processing query: {query}. Please wait while we generate insights...")
 
-    st.success("Analysis complete!")
+        default_date = datetime.datetime.now().date()
+        result = crew.kickoff(inputs={"query": query, "default_date": str(default_date)})
 
-    # Exibição do Relatório
-    st.markdown("## Full Analysis Report")
-    st.markdown(result)
+        st.success("Analysis complete!")
 
-# Rodapé
-st.markdown("---")
-st.markdown("Developed by FutureLab")
+        # Exibição do Relatório
+        st.markdown("## Full Analysis Report")
+        st.markdown(result)
+
+    # Rodapé
+    st.markdown("---")
+    st.markdown("Developed by FutureLab")
+else:
+    st.warning("Incorrect password. Please try again.")
