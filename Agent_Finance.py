@@ -418,7 +418,7 @@ st.title("Advanced Stock Analysis Dashboard")
 st.sidebar.header("Stock Analysis Query")
 query = st.sidebar.text_area(
     "Enter your stock analysis question",
-    value="Is Apple a safe long-term investment for a risk-averse investor?",
+    value="O que devo saber antes de investir na Petrobras?",
     height=100
 )
 analyze_button = st.sidebar.button("Run Analysis")
