@@ -7,6 +7,7 @@ import numpy as np
 import streamlit as st
 from openai import OpenAI
 from langchain_openai import ChatOpenAI
+import os
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
