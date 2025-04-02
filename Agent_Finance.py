@@ -411,6 +411,9 @@ crew = Crew(
 # Configuração da Página
 st.set_page_config(page_title="Advanced Stock Analysis Dashboard", layout="wide")
 
+# Título Principal (só aparece se a senha estiver correta)
+st.title("Advanced Stock Analysis Dashboard")
+
 # Senha de Acesso
 PASSWORD = "future_lab"  # Substitua por uma senha segura
 entered_password = st.text_input("Enter the password:", type="password")
