@@ -427,7 +427,7 @@ if entered_password != PASSWORD:
 st.sidebar.header("Stock Analysis Query")
 query = st.sidebar.text_area(
     "Enter your stock analysis question",
-    value="Petrobrás é um bom investimento de longo prazo para um investidor conservador?",
+    value="Petrobras é um bom investimento de longo prazo para um investidor conservador?",
     height=100
 )
 analyze_button = st.sidebar.button("Run Analysis")
