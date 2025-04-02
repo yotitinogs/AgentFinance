@@ -11,7 +11,7 @@ import os
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-llm_gpt = ChatOpenAI(api_key=OPENAI_API_KEY, model="gpt-3.5-turbo", temperature=0)
+llm_gpt = ChatOpenAI(api_key=OPENAI_API_KEY, model="gpt-4o-mini", temperature=0)
 
 @tool
 def get_basic_stock_info(ticker: str) -> pd.DataFrame:
