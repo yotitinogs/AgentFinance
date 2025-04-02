@@ -414,16 +414,14 @@ st.set_page_config(page_title="Advanced Stock Analysis Dashboard", layout="wide"
 # Título Principal (só aparece se a senha estiver correta)
 st.title("Advanced Stock Analysis Dashboard")
 
-# Senha de Acesso
+# Barra Lateral - Senha de Acesso
+st.sidebar.header("Authentication")
 PASSWORD = "future_lab"  # Substitua por uma senha segura
-entered_password = st.text_input("Enter the password:", type="password")
+entered_password = st.sidebar.text_input("Enter the password:", type="password")
 
 if entered_password != PASSWORD:
-    st.warning("Incorrect password. Please try again.")
-    st.stop()  # Interrompe a execução do código até que a senha esteja correta
-
-# Título Principal (só aparece se a senha estiver correta)
-st.title("Advanced Stock Analysis Dashboard")
+    st.sidebar.warning("Incorrect password. Please try again.")
+    st.stop()  # Interrompe a execução se a senha estiver errada
 
 # Barra Lateral - Entrada de Consulta
 st.sidebar.header("Stock Analysis Query")
