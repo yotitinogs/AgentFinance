@@ -436,7 +436,7 @@ analyze_button = st.sidebar.button("Run Analysis")
 if analyze_button:
     st.info(f"Processing query: {query}. Please wait while we generate insights...")
 
-    default_date = datetime.datetime.now().date()
+    default_date = datetime.now().date()
     result = crew.kickoff(inputs={"query": query, "default_date": str(default_date)})
 
     st.success("Analysis complete!")
